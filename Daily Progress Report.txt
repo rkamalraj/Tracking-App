@@ -1,3 +1,16 @@
+pending:
+		* activity dashboard
+		* calender and time column
+		* logo
+		* font
+		* layout
+		* signup/signin page
+		* streak icon
+		* small games
+		* expense tracking module
+		* 
+
+progress:
 Day 1:
 	* git hub project pushed(created)
 		|->branches (Master, Partha)
@@ -6,5 +19,7 @@ Day 1:
 	
 	* color theme selected (metallic blue)
 
-	* font choosing 
+	
+
+	* 
 	
