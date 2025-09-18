@@ -1,0 +1,10 @@
+Day 1:
+	* git hub project pushed(created)
+		|->branches (Master, Partha)
+	
+	* app name created:  KP KitPush
+	
+	* color theme selected (metallic blue)
+
+	* font choosing 
+	
