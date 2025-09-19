@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   BarChart,
   Bar,
@@ -10,60 +10,68 @@ import {
 } from "recharts";
 
 const WeightDashboard = () => {
-  const [filter, setFilter] = useState("week");
+  const [filter, setFilter] = useState("year");
+  const [rawData, setRawData] = useState([]);
+  const [filteredData, setFilteredData] = useState([]);
 
-  // Sample data (replace with your real data later)
-  const dataSets = {
-    week: [
-      { label: "Mon", weight: 70 },
-      { label: "Tue", weight: 71 },
-      { label: "Wed", weight: 70.5 },
-      { label: "Thu", weight: 72 },
-      { label: "Fri", weight: 71.8 },
-      { label: "Sat", weight: 72.2 },
-      { label: "Sun", weight: 71 },
-    ],
-    month: [
-      { label: "Week 1", weight: 70 },
-      { label: "Week 2", weight: 71 },
-      { label: "Week 3", weight: 72 },
-      { label: "Week 4", weight: 73 },
-    ],
-    "3month": [
-      { label: "Jan", weight: 70 },
-      { label: "Feb", weight: 72 },
-      { label: "Mar", weight: 74 },
-    ],
-    year: [
-      { label: "Jan", weight: 70 },
-      { label: "Feb", weight: 71 },
-      { label: "Mar", weight: 72 },
-      { label: "Apr", weight: 73 },
-      { label: "May", weight: 72.5 },
-      { label: "Jun", weight: 74 },
-      { label: "Jul", weight: 75 },
-      { label: "Aug", weight: 74.5 },
-      { label: "Sep", weight: 76 },
-      { label: "Oct", weight: 75.5 },
-      { label: "Nov", weight: 76.2 },
-      { label: "Dec", weight: 77 },
-    ],
-    allYears: [
-      { label: "2012", weight: 65 },
-      { label: "2013", weight: 67 },
-      { label: "2014", weight: 69 },
-      { label: "2015", weight: 72 },
-      { label: "2016", weight: 74 },
-      { label: "2017", weight: 76 },
-      { label: "2018", weight: 77 },
-      { label: "2019", weight: 78 },
-      { label: "2020", weight: 79 },
-      { label: "2021", weight: 80 },
-      { label: "2022", weight: 81 },
-      { label: "2023", weight: 83 },
-      { label: "2024", weight: 84 },
-    ],
-  };
+  // Fetch data from Spring Boot (via ngrok tunnel)
+  useEffect(() => {
+   fetch("https://23d36645dd40.ngrok-free.app/api/weights", {
+  headers: {
+    "ngrok-skip-browser-warning": "true"
+  }
+})
+
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`HTTP error! Status: ${res.status}`);
+        }
+        return res.json();
+      })
+      .then((data) => {
+        console.log("Fetched Data:", data);
+        setRawData(data);
+      })
+      .catch((err) => console.error("Fetch Error:", err));
+  }, []);
+
+  // Apply filter whenever rawData or filter changes
+  useEffect(() => {
+    let grouped = [];
+
+    if (filter === "week") {
+      // Example: Just show first 7 records as week demo
+      grouped = rawData.slice(0, 7);
+    } else if (filter === "month") {
+      // Group by month name within the latest year
+      const latestYear = Math.max(...rawData.map((d) => d.year));
+      grouped = rawData.filter((d) => d.year === latestYear);
+    } else if (filter === "3month") {
+      // Last 3 months from latest year
+      const latestYear = Math.max(...rawData.map((d) => d.year));
+      grouped = rawData
+        .filter((d) => d.year === latestYear)
+        .slice(0, 3);
+    } else if (filter === "year") {
+      // Show full months for latest year
+      const latestYear = Math.max(...rawData.map((d) => d.year));
+      grouped = rawData.filter((d) => d.year === latestYear);
+    } else if (filter === "allYears") {
+      // Aggregate yearly averages
+      const yearMap = {};
+      rawData.forEach((d) => {
+        if (!yearMap[d.year]) yearMap[d.year] = [];
+        yearMap[d.year].push(d.weight);
+      });
+      grouped = Object.keys(yearMap).map((year) => ({
+        label: year,
+        weight:
+          yearMap[year].reduce((a, b) => a + b, 0) / yearMap[year].length,
+      }));
+    }
+
+    setFilteredData(grouped);
+  }, [filter, rawData]);
 
   return (
     <div style={{ padding: "20px" }}>
@@ -80,7 +88,7 @@ const WeightDashboard = () => {
 
       {/* Chart */}
       <ResponsiveContainer width="100%" height={400}>
-        <BarChart data={dataSets[filter]}>
+        <BarChart data={filteredData}>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="label" />
           <YAxis />
