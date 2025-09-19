@@ -13,8 +13,11 @@ const WeightDashboard = () => {
   const [filter, setFilter] = useState("week");
   const [weights, setWeights] = useState([]);
 
- // const API_URL = "http://localhost:8080/api/weights";
-    const API_URL = "https://d04b08a3ee41.ngrok-free.app/api/weights";
+   const API_URL = "http://localhost:8080/api/weights/all";
+  // const API_URL = "http://localhost:8080/api/weights/add";
+    
+  
+  //const API_URL = "https://e347c5d1e3e8.ngrok-free.app/api/weights";
   // Get current month and date labels
   const now = new Date();
   const currentMonthLabel = now.toLocaleString("en-US", { month: "long", year: "numeric" });

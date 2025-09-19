@@ -1,4 +1,17 @@
 // Table creation automatically done by the spring boot entity class
+================================================================================
+
+// This query is needed to manually add to the MySQL because if user want to change it 
+// again it will compare old and new time then it will add new weight. 
+
+
+ALTER TABLE weights
+ADD COLUMN recorded_date DATE GENERATED ALWAYS AS (DATE(recorded_at)) STORED;
+
+ALTER TABLE weights
+ADD CONSTRAINT unique_user_day UNIQUE (user_id, recorded_date);
+
+
 
 ================================================================================
 
