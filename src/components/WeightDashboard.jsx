@@ -8,8 +8,8 @@ import {
   CartesianGrid,
   ResponsiveContainer,
 } from "recharts";
-
-const API_BASE = "https://0495f30895e8.ngrok-free.app/api/weights";
+//const API_BASE = "http://localhost:8080/api/weights";
+const API_BASE = "https://76a7d57c4517.ngrok-free.app/api/weights";
 
 function WeightApp() {
   const [filter, setFilter] = useState("week");
