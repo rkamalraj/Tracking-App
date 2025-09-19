@@ -10,72 +10,144 @@ import {
 } from "recharts";
 
 const WeightDashboard = () => {
-  const [filter, setFilter] = useState("year");
-  const [rawData, setRawData] = useState([]);
-  const [filteredData, setFilteredData] = useState([]);
+  const [filter, setFilter] = useState("week");
+  const [weights, setWeights] = useState([]);
 
-  // Fetch data from Spring Boot (via ngrok tunnel)
+ // const API_URL = "http://localhost:8080/api/weights";
+    const API_URL = "https://d04b08a3ee41.ngrok-free.app/api/weights";
+  // Get current month and date labels
+  const now = new Date();
+  const currentMonthLabel = now.toLocaleString("en-US", { month: "long", year: "numeric" });
+  const currentDateLabel = now.toLocaleDateString("en-GB"); // dd/mm/yyyy format
+
   useEffect(() => {
-   fetch("https://23d36645dd40.ngrok-free.app/api/weights", {
+    fetch(API_URL, {
   headers: {
     "ngrok-skip-browser-warning": "true"
   }
 })
-
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(`HTTP error! Status: ${res.status}`);
-        }
-        return res.json();
-      })
+      .then((res) => res.json())
       .then((data) => {
-        console.log("Fetched Data:", data);
-        setRawData(data);
+        const formatted = data.map((w) => ({
+          date: new Date(w.recordedAt),
+          weight: w.weight,
+        }));
+        setWeights(formatted);
       })
-      .catch((err) => console.error("Fetch Error:", err));
+      .catch((err) => console.error(err));
   }, []);
 
-  // Apply filter whenever rawData or filter changes
-  useEffect(() => {
-    let grouped = [];
+  const getWeightForDate = (targetDate) => {
+    const found = weights.find(
+      (w) => w.date.toDateString() === targetDate.toDateString()
+    );
+    return found ? found.weight : 0;
+  };
 
-    if (filter === "week") {
-      // Example: Just show first 7 records as week demo
-      grouped = rawData.slice(0, 7);
-    } else if (filter === "month") {
-      // Group by month name within the latest year
-      const latestYear = Math.max(...rawData.map((d) => d.year));
-      grouped = rawData.filter((d) => d.year === latestYear);
-    } else if (filter === "3month") {
-      // Last 3 months from latest year
-      const latestYear = Math.max(...rawData.map((d) => d.year));
-      grouped = rawData
-        .filter((d) => d.year === latestYear)
-        .slice(0, 3);
-    } else if (filter === "year") {
-      // Show full months for latest year
-      const latestYear = Math.max(...rawData.map((d) => d.year));
-      grouped = rawData.filter((d) => d.year === latestYear);
-    } else if (filter === "allYears") {
-      // Aggregate yearly averages
-      const yearMap = {};
-      rawData.forEach((d) => {
-        if (!yearMap[d.year]) yearMap[d.year] = [];
-        yearMap[d.year].push(d.weight);
-      });
-      grouped = Object.keys(yearMap).map((year) => ({
-        label: year,
-        weight:
-          yearMap[year].reduce((a, b) => a + b, 0) / yearMap[year].length,
-      }));
+  const getLastWeightOfMonth = (month, year) => {
+    const monthData = weights.filter(
+      (w) => w.date.getMonth() === month && w.date.getFullYear() === year
+    );
+    if (monthData.length === 0) return 0;
+    return monthData.reduce((a, b) => (a.date > b.date ? a : b)).weight;
+  };
+
+  const getLastWeightOfYear = (year) => {
+    const yearData = weights.filter((w) => w.date.getFullYear() === year);
+    if (yearData.length === 0) return 0;
+    return yearData.reduce((a, b) => (a.date > b.date ? a : b)).weight;
+  };
+
+  const getFilteredData = () => {
+    const now = new Date();
+
+    switch (filter) {
+      case "week": {
+        const day = now.getDay();
+        const monday = new Date(now);
+        monday.setDate(now.getDate() - ((day + 6) % 7));
+        const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+        return days.map((d, i) => {
+          const date = new Date(monday);
+          date.setDate(monday.getDate() + i);
+          return {
+            label: d,
+            weight: getWeightForDate(date),
+          };
+        });
+      }
+
+      case "month": {
+        const year = now.getFullYear();
+        const month = now.getMonth();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        return Array.from({ length: daysInMonth }, (_, i) => {
+          const date = new Date(year, month, i + 1);
+          return {
+            label: (i + 1).toString(),
+            weight: getWeightForDate(date),
+          };
+        });
+      }
+
+      case "3month": {
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
+        const result = [];
+        for (let i = 2; i >= 0; i--) {
+          let m = currentMonth - i;
+          let y = currentYear;
+          if (m < 0) {
+            m += 12;
+            y -= 1;
+          }
+          result.push({
+            label: new Date(y, m).toLocaleString("en-US", { month: "short" }),
+            weight: getLastWeightOfMonth(m, y),
+          });
+        }
+        return result;
+      }
+
+      case "year": {
+        const y = now.getFullYear();
+        return Array.from({ length: 12 }, (_, m) => ({
+          label: new Date(y, m).toLocaleString("en-US", { month: "short" }),
+          weight: getLastWeightOfMonth(m, y),
+        }));
+      }
+
+      case "allYears": {
+        const years = [...new Set(weights.map((w) => w.date.getFullYear()))];
+        if (years.length === 0) return [];
+        const minYear = Math.min(...years);
+        const maxYear = Math.max(...years);
+        const result = [];
+        for (let y = minYear; y <= maxYear; y++) {
+          result.push({
+            label: y.toString(),
+            weight: getLastWeightOfYear(y),
+          });
+        }
+        return result;
+      }
+
+      default:
+        return [];
     }
-
-    setFilteredData(grouped);
-  }, [filter, rawData]);
+  };
 
   return (
     <div style={{ padding: "20px" }}>
       <h2>Weight Progress Dashboard</h2>
+
+      {/* Current Month & Date Labels */}
+      <p>
+        <strong>Current Month:</strong> {currentMonthLabel} |{" "}
+        <strong>Today:</strong> {currentDateLabel}
+      </p>
+
+      <p>Showing: <strong>{filter.toUpperCase()}</strong></p>
 
       {/* Filter Buttons */}
       <div style={{ marginBottom: "20px" }}>
@@ -88,7 +160,7 @@ const WeightDashboard = () => {
 
       {/* Chart */}
       <ResponsiveContainer width="100%" height={400}>
-        <BarChart data={filteredData}>
+        <BarChart data={getFilteredData()}>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="label" />
           <YAxis />
