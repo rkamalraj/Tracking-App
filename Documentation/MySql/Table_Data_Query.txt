@@ -1,0 +1,157 @@
+// Table creation automatically done by the spring boot entity class
+
+================================================================================
+
+// below query is for creating procedure like fake data of 2 years of weight
+
+
+DELIMITER $$
+
+CREATE PROCEDURE insert_progressive_weights()
+BEGIN
+  DECLARE d DATE;
+  DECLARE w DECIMAL(5,2);
+
+  SET d = '2024-01-01';
+  SET w = 70.0; -- starting weight
+
+  WHILE d <= '2025-09-15' DO
+    -- small daily fluctuation ±0.5
+    SET w = w + (RAND() - 0.5) * 1.0;
+
+    -- weekly progressive increase ~0.15 kg
+    IF DAYOFWEEK(d) = 2 THEN -- every Monday
+      SET w = w + 0.15;
+    END IF;
+
+    -- Insert row
+    INSERT INTO weights (user_id, weight, recorded_at)
+    VALUES (1, ROUND(w, 1), d);
+
+    -- Move to next day
+    SET d = DATE_ADD(d, INTERVAL 1 DAY);
+  END WHILE;
+END$$
+
+DELIMITER ;
+
+-- Clear old data and call it once
+TRUNCATE TABLE weights;
+CALL insert_progressive_weights();
+
+
+
+=========================================================================================
+// if you already created procedure then only need to call this statement
+
+CALL insert_progressive_weights();
+
+=========================================================================================
+
+// 1. Last Week (Mon → Sun)
+
+
+SELECT *
+FROM weights
+WHERE recorded_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+ORDER BY recorded_at ASC;
+
+
+	-> Returns all rows from the last 7 days.
+
+	-> Use for your week view.
+
+=========================================================================================
+
+// 2. Current Month
+
+
+SELECT *
+FROM weights
+WHERE YEAR(recorded_at) = YEAR(CURDATE())
+  AND MONTH(recorded_at) = MONTH(CURDATE())
+ORDER BY recorded_at ASC;
+
+===============================================================================================
+
+// 3. Last 3 Months (Month-End Weights)
+
+
+SELECT
+    DATE_FORMAT(recorded_at, '%Y-%m') AS month,
+    weight,
+    recorded_at
+FROM weights w1
+WHERE recorded_at = (
+    SELECT MAX(recorded_at)
+    FROM weights w2
+    WHERE YEAR(w2.recorded_at) = YEAR(w1.recorded_at)
+      AND MONTH(w2.recorded_at) = MONTH(w1.recorded_at)
+)
+AND recorded_at >= DATE_SUB(CURDATE(), INTERVAL 3 MONTH)
+ORDER BY recorded_at;
+
+
+	-> Returns one row per month (last weight in that month).
+
+	-> For 3-month bar view.
+
+=====================================================================================================
+
+// 4. Current Year (Month-End Weights)
+
+
+SELECT
+    DATE_FORMAT(recorded_at, '%Y-%m') AS month,
+    weight,
+    recorded_at
+FROM weights w1
+WHERE recorded_at = (
+    SELECT MAX(recorded_at)
+    FROM weights w2
+    WHERE YEAR(w2.recorded_at) = YEAR(w1.recorded_at)
+      AND MONTH(w2.recorded_at) = MONTH(w1.recorded_at)
+)
+AND YEAR(recorded_at) = YEAR(CURDATE())
+ORDER BY recorded_at;
+
+
+	-> Returns 12 bars (Jan → Dec) with month-end weight.
+	
+	-> For your year view.
+
+========================================================================================================
+
+// 5. All Years (Year-End Weights)
+
+
+SELECT
+    YEAR(recorded_at) AS year,
+    weight,
+    recorded_at
+FROM weights w1
+WHERE recorded_at = (
+    SELECT MAX(recorded_at)
+    FROM weights w2
+    WHERE YEAR(w2.recorded_at) = YEAR(w1.recorded_at)
+)
+ORDER BY year;
+
+
+        -> Returns one bar per year, last weight in that year.
+
+        -> For your all years view.
+
+=====================================================================================================================
+
+***************************
+// This is for "reference only" no need to create table by our own in workbench
+
+CREATE TABLE weights (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL, -- if you want multi-user support
+    weight DECIMAL(5,2) NOT NULL,
+    recorded_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+***************************

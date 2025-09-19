@@ -1,0 +1,385 @@
+
+===
+*working code for functionality button*
+=====
+import React, { useState } from "react";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+  ResponsiveContainer,
+} from "recharts";
+
+const WeightDashboard = () => {
+  const [filter, setFilter] = useState("week");
+
+  // Sample data (replace with your real data later)
+  const dataSets = {
+    week: [
+      { label: "Mon", weight: 70 },
+      { label: "Tue", weight: 71 },
+      { label: "Wed", weight: 70.5 },
+      { label: "Thu", weight: 72 },
+      { label: "Fri", weight: 71.8 },
+      { label: "Sat", weight: 72.2 },
+      { label: "Sun", weight: 71 },
+    ],
+    month: [
+      { label: "Week 1", weight: 70 },
+      { label: "Week 2", weight: 71 },
+      { label: "Week 3", weight: 72 },
+      { label: "Week 4", weight: 73 },
+    ],
+    "3month": [
+      { label: "Jan", weight: 70 },
+      { label: "Feb", weight: 72 },
+      { label: "Mar", weight: 74 },
+    ],
+    year: [
+      { label: "Jan", weight: 70 },
+      { label: "Feb", weight: 71 },
+      { label: "Mar", weight: 72 },
+      { label: "Apr", weight: 73 },
+      { label: "May", weight: 72.5 },
+      { label: "Jun", weight: 74 },
+      { label: "Jul", weight: 75 },
+      { label: "Aug", weight: 74.5 },
+      { label: "Sep", weight: 76 },
+      { label: "Oct", weight: 75.5 },
+      { label: "Nov", weight: 76.2 },
+      { label: "Dec", weight: 77 },
+    ],
+    allYears: [
+      { label: "2012", weight: 65 },
+      { label: "2013", weight: 67 },
+      { label: "2014", weight: 69 },
+      { label: "2015", weight: 72 },
+      { label: "2016", weight: 74 },
+      { label: "2017", weight: 76 },
+      { label: "2018", weight: 77 },
+      { label: "2019", weight: 78 },
+      { label: "2020", weight: 79 },
+      { label: "2021", weight: 80 },
+      { label: "2022", weight: 81 },
+      { label: "2023", weight: 83 },
+      { label: "2024", weight: 84 },
+    ],
+  };
+
+  return (
+    <div style={{ padding: "20px" }}>
+      <h2>Weight Progress Dashboard</h2>
+
+      {/* Filter Buttons */}
+      <div style={{ marginBottom: "20px" }}>
+        <button onClick={() => setFilter("week")}>Week</button>
+        <button onClick={() => setFilter("month")}>Month</button>
+        <button onClick={() => setFilter("3month")}>3-Month</button>
+        <button onClick={() => setFilter("year")}>Year</button>
+        <button onClick={() => setFilter("allYears")}>All Years</button>
+      </div>
+
+      {/* Chart */}
+      <ResponsiveContainer width="100%" height={400}>
+        <BarChart data={dataSets[filter]}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="label" />
+          <YAxis />
+          <Tooltip />
+          <Bar dataKey="weight" fill="#8884d8" />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+};
+
+export default WeightDashboard;
+
+
+
+
+
+
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!===
+all combined data
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!===
+import React, { useState, useEffect } from "react";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+  ResponsiveContainer,
+} from "recharts";
+
+const WeightDashboard = () => {
+  const [filter, setFilter] = useState("year");
+  const [rawData, setRawData] = useState([]);
+  const [filteredData, setFilteredData] = useState([]);
+
+  // Fetch data from Spring Boot (via ngrok tunnel)
+  useEffect(() => {
+   fetch("https://23d36645dd40.ngrok-free.app/api/weights", {
+  headers: {
+    "ngrok-skip-browser-warning": "true"
+  }
+})
+
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`HTTP error! Status: ${res.status}`);
+        }
+        return res.json();
+      })
+      .then((data) => {
+        console.log("Fetched Data:", data);
+        setRawData(data);
+      })
+      .catch((err) => console.error("Fetch Error:", err));
+  }, []);
+
+  // Apply filter whenever rawData or filter changes
+  useEffect(() => {
+    let grouped = [];
+
+    if (filter === "week") {
+      // Example: Just show first 7 records as week demo
+      grouped = rawData.slice(0, 7);
+    } else if (filter === "month") {
+      // Group by month name within the latest year
+      const latestYear = Math.max(...rawData.map((d) => d.year));
+      grouped = rawData.filter((d) => d.year === latestYear);
+    } else if (filter === "3month") {
+      // Last 3 months from latest year
+      const latestYear = Math.max(...rawData.map((d) => d.year));
+      grouped = rawData
+        .filter((d) => d.year === latestYear)
+        .slice(0, 3);
+    } else if (filter === "year") {
+      // Show full months for latest year
+      const latestYear = Math.max(...rawData.map((d) => d.year));
+      grouped = rawData.filter((d) => d.year === latestYear);
+    } else if (filter === "allYears") {
+      // Aggregate yearly averages
+      const yearMap = {};
+      rawData.forEach((d) => {
+        if (!yearMap[d.year]) yearMap[d.year] = [];
+        yearMap[d.year].push(d.weight);
+      });
+      grouped = Object.keys(yearMap).map((year) => ({
+        label: year,
+        weight:
+          yearMap[year].reduce((a, b) => a + b, 0) / yearMap[year].length,
+      }));
+    }
+
+    setFilteredData(grouped);
+  }, [filter, rawData]);
+
+  return (
+    <div style={{ padding: "20px" }}>
+      <h2>Weight Progress Dashboard</h2>
+
+      {/* Filter Buttons */}
+      <div style={{ marginBottom: "20px" }}>
+        <button onClick={() => setFilter("week")}>Week</button>
+        <button onClick={() => setFilter("month")}>Month</button>
+        <button onClick={() => setFilter("3month")}>3-Month</button>
+        <button onClick={() => setFilter("year")}>Year</button>
+        <button onClick={() => setFilter("allYears")}>All Years</button>
+      </div>
+
+      {/* Chart */}
+      <ResponsiveContainer width="100%" height={400}>
+        <BarChart data={filteredData}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="label" />
+          <YAxis />
+          <Tooltip />
+          <Bar dataKey="weight" fill="#8884d8" />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+};
+
+export default WeightDashboard;
+==========================================================================================
+import React, { useState, useEffect } from "react";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+  ResponsiveContainer,
+} from "recharts";
+
+const WeightDashboard = () => {
+  const [filter, setFilter] = useState("week");
+  const [weights, setWeights] = useState([]);
+
+  const API_URL = "http://localhost:8080/api/weights";
+
+  useEffect(() => {
+    fetch(API_URL)
+      .then((res) => res.json())
+      .then((data) => {
+        const formatted = data.map((w) => ({
+          date: new Date(w.recordedAt),
+          weight: w.weight,
+        }));
+        setWeights(formatted);
+      })
+      .catch((err) => console.error(err));
+  }, []);
+
+  // Find latest weight for a date
+  const getWeightForDate = (targetDate) => {
+    const found = weights.find(
+      (w) =>
+        w.date.toDateString() === targetDate.toDateString() // compare by day only
+    );
+    return found ? found.weight : 0;
+  };
+
+  // Find last weight of month
+  const getLastWeightOfMonth = (month, year) => {
+    const monthData = weights.filter(
+      (w) => w.date.getMonth() === month && w.date.getFullYear() === year
+    );
+    if (monthData.length === 0) return 0;
+    return monthData.reduce((a, b) => (a.date > b.date ? a : b)).weight;
+  };
+
+  // Find last weight of year
+  const getLastWeightOfYear = (year) => {
+    const yearData = weights.filter((w) => w.date.getFullYear() === year);
+    if (yearData.length === 0) return 0;
+    return yearData.reduce((a, b) => (a.date > b.date ? a : b)).weight;
+  };
+
+  const getFilteredData = () => {
+    const now = new Date();
+
+    switch (filter) {
+      case "week": {
+        // Get Monday of this week
+        const today = new Date();
+        const day = today.getDay(); // 0=Sun..6=Sat
+        const monday = new Date(today);
+        monday.setDate(today.getDate() - ((day + 6) % 7));
+
+        const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+        return days.map((d, i) => {
+          const date = new Date(monday);
+          date.setDate(monday.getDate() + i);
+          return {
+            label: d,
+            weight: getWeightForDate(date),
+          };
+        });
+      }
+
+      case "month": {
+        const year = now.getFullYear();
+        const month = now.getMonth();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        return Array.from({ length: daysInMonth }, (_, i) => {
+          const date = new Date(year, month, i + 1);
+          return {
+            label: (i + 1).toString(),
+            weight: getWeightForDate(date),
+          };
+        });
+      }
+
+      case "3month": {
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
+        const labels = [];
+        const result = [];
+        for (let i = 2; i >= 0; i--) {
+          let m = currentMonth - i;
+          let y = currentYear;
+          if (m < 0) {
+            m += 12;
+            y -= 1;
+          }
+          labels.push(new Date(y, m).toLocaleString("en-US", { month: "short" }));
+          result.push({
+            label: new Date(y, m).toLocaleString("en-US", { month: "short" }),
+            weight: getLastWeightOfMonth(m, y),
+          });
+        }
+        return result;
+      }
+
+      case "year": {
+        const y = now.getFullYear();
+        const months = Array.from({ length: 12 }, (_, m) => ({
+          label: new Date(y, m).toLocaleString("en-US", { month: "short" }),
+          weight: getLastWeightOfMonth(m, y),
+        }));
+        return months;
+      }
+
+      case "allYears": {
+        const years = [...new Set(weights.map((w) => w.date.getFullYear()))];
+        if (years.length === 0) return [];
+        const minYear = Math.min(...years);
+        const maxYear = Math.max(...years);
+        const result = [];
+        for (let y = minYear; y <= maxYear; y++) {
+          result.push({
+            label: y.toString(),
+            weight: getLastWeightOfYear(y),
+          });
+        }
+        return result;
+      }
+
+      default:
+        return [];
+    }
+  };
+
+  return (
+    <div style={{ padding: "20px" }}>
+      <h2>Weight Progress Dashboard</h2>
+      <p>Showing: <strong>{filter.toUpperCase()}</strong></p>
+
+      {/* Filter Buttons */}
+      <div style={{ marginBottom: "20px" }}>
+        <button onClick={() => setFilter("week")}>Week</button>
+        <button onClick={() => setFilter("month")}>Month</button>
+        <button onClick={() => setFilter("3month")}>3-Month</button>
+        <button onClick={() => setFilter("year")}>Year</button>
+        <button onClick={() => setFilter("allYears")}>All Years</button>
+      </div>
+
+      {/* Chart */}
+      <ResponsiveContainer width="100%" height={400}>
+        <BarChart data={getFilteredData()}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="label" />
+          <YAxis />
+          <Tooltip />
+          <Bar dataKey="weight" fill="#8884d8" />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+};
+
+export default WeightDashboard;
+
+==========================================================================================
