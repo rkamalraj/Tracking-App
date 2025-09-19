@@ -9,26 +9,29 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-const WeightDashboard = () => {
+const API_BASE = "https://0495f30895e8.ngrok-free.app/api/weights";
+
+function WeightApp() {
   const [filter, setFilter] = useState("week");
   const [weights, setWeights] = useState([]);
+  const [weight, setWeight] = useState("");
+  const [message, setMessage] = useState("");
 
-   const API_URL = "http://localhost:8080/api/weights/all";
-  // const API_URL = "http://localhost:8080/api/weights/add";
-    
-  
-  //const API_URL = "https://e347c5d1e3e8.ngrok-free.app/api/weights";
   // Get current month and date labels
   const now = new Date();
-  const currentMonthLabel = now.toLocaleString("en-US", { month: "long", year: "numeric" });
+  const currentMonthLabel = now.toLocaleString("en-US", {
+    month: "long",
+    year: "numeric",
+  });
   const currentDateLabel = now.toLocaleDateString("en-GB"); // dd/mm/yyyy format
 
-  useEffect(() => {
-    fetch(API_URL, {
-  headers: {
-    "ngrok-skip-browser-warning": "true"
-  }
-})
+  // Fetch all weights
+  const fetchWeights = () => {
+    fetch(`${API_BASE}/all`, {
+      headers: {
+        "ngrok-skip-browser-warning": "true",
+      },
+    })
       .then((res) => res.json())
       .then((data) => {
         const formatted = data.map((w) => ({
@@ -38,8 +41,44 @@ const WeightDashboard = () => {
         setWeights(formatted);
       })
       .catch((err) => console.error(err));
+  };
+
+  useEffect(() => {
+    fetchWeights();
   }, []);
 
+  // Add or update weight
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!weight) {
+      setMessage("Please enter a weight");
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE}/add`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ weight: parseFloat(weight) }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setMessage(`✅ Weight ${data.weight}kg added at ${data.recordedAt}`);
+        setWeight("");
+        fetchWeights(); // refresh chart after adding
+      } else {
+        setMessage("❌ Failed to add weight");
+      }
+    } catch (error) {
+      setMessage("⚠️ Error: " + error.message);
+    }
+  };
+
+  // Helpers for chart
   const getWeightForDate = (targetDate) => {
     const found = weights.find(
       (w) => w.date.toDateString() === targetDate.toDateString()
@@ -142,7 +181,42 @@ const WeightDashboard = () => {
 
   return (
     <div style={{ padding: "20px" }}>
-      <h2>Weight Progress Dashboard</h2>
+      <h2>Weight Tracker</h2>
+
+      {/* Add Weight Form */}
+      <div style={{ marginBottom: "30px" }}>
+        <form
+          onSubmit={handleSubmit}
+          style={{
+            display: "flex",
+            gap: "10px",
+            marginBottom: "10px",
+          }}
+        >
+          <input
+            type="number"
+            step="0.1"
+            placeholder="Enter weight (kg)"
+            value={weight}
+            onChange={(e) => setWeight(e.target.value)}
+            style={{ padding: "8px", flex: "1" }}
+          />
+          <button
+            type="submit"
+            style={{
+              padding: "8px 16px",
+              backgroundColor: "#4f46e5",
+              color: "white",
+              border: "none",
+              borderRadius: "8px",
+              cursor: "pointer",
+            }}
+          >
+            Add Weight
+          </button>
+        </form>
+        {message && <p>{message}</p>}
+      </div>
 
       {/* Current Month & Date Labels */}
       <p>
@@ -150,7 +224,9 @@ const WeightDashboard = () => {
         <strong>Today:</strong> {currentDateLabel}
       </p>
 
-      <p>Showing: <strong>{filter.toUpperCase()}</strong></p>
+      <p>
+        Showing: <strong>{filter.toUpperCase()}</strong>
+      </p>
 
       {/* Filter Buttons */}
       <div style={{ marginBottom: "20px" }}>
@@ -173,6 +249,7 @@ const WeightDashboard = () => {
       </ResponsiveContainer>
     </div>
   );
-};
+}
 
-export default WeightDashboard;
+export default WeightApp;
+  //const API_URL = "http://localhost:8080/api/weights/all";
