@@ -9,7 +9,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 //const API_BASE = "http://localhost:8080/api/weights";
-const API_BASE = "https://76a7d57c4517.ngrok-free.app/api/weights";
+const API_BASE = "https://ea6bd1fa470d.ngrok-free.app/api/weights";
 
 function WeightApp() {
   const [filter, setFilter] = useState("week");
